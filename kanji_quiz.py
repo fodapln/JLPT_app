@@ -4,7 +4,7 @@ import os
 import sys
 
 class KanjiQuiz:
-    def __init__(self, csv_path="./Kanji_20240329_003023.csv"):
+    def __init__(self, csv_path="./Kanji_Traduzido.csv"):
         self.csv_path = csv_path
         self.full_df = self.load_data()
         self.vidas_iniciais = 3
@@ -37,16 +37,23 @@ class KanjiQuiz:
 
     def preparar_jogo(self, nivel):
         df_nivel = self.full_df.filter(pl.col("JLPT-test") == nivel)
-        df_nivel = df_nivel.select(pl.col(
-            'id', 'Kanji', 'Grade', 'JLPT-test',
-            'Reading within Joyo', 'Reading beyond Joyo',
-            'On within Joyo', 'Translation of On',
-            'Kun within Joyo', 'Translation of Kun',
-            'English', 'Portugues'
-        ))
+        df_nivel = df_nivel.select([
+            pl.col("Kanji"),
+            pl.col("JLPT-test"),
+            pl.col("GPT-PT-BR"),
+            pl.col("word1"),
+            pl.col("reading1"),
+            pl.col("translation1"),
+            pl.col("word2"),
+            pl.col("reading2"),
+            pl.col("translation2"),
+            pl.col("word3"),
+            pl.col("reading3"),
+            pl.col("translation3")
+        ])
 
         self.kanji_df = df_nivel
-        lista_de_ids = df_nivel["id"].to_list()
+        lista_de_ids = df_nivel["Kanji"].to_list()
         self.lista_aleatoria = rd.sample(lista_de_ids, len(lista_de_ids))
         self.vidas = self.vidas_iniciais
         self.feedback = []
@@ -54,23 +61,23 @@ class KanjiQuiz:
     def rodada(self):
         # Separa um kanji
         current_id = self.lista_aleatoria[0]
-        kanji_linha_escolhido = self.kanji_df.filter(pl.col('id') == current_id)
+        kanji_linha_escolhido = self.kanji_df.filter(pl.col('Kanji') == current_id)
 
         kanji_escolhido = kanji_linha_escolhido.item(0, 'Kanji')
-        traducao_escolhida = kanji_linha_escolhido.item(0, 'Portugues')
+        traducao_escolhida = kanji_linha_escolhido.item(0, 'GPT-PT-BR')
 
         print(f"Você tem {self.vidas} vidas!")
         print("Escolha a tradução correspondente ao kanji!")
         print(f"\n--- {kanji_escolhido} ---\n")
 
         # Separa outras 3 escolhas
-        outros_kanjis = self.kanji_df.filter(pl.col('id') != current_id)
+        outros_kanjis = self.kanji_df.filter(pl.col('Kanji') != current_id)
         num_escolhas = min(3, outros_kanjis.height)
         kanji_linha_escolhas = outros_kanjis.sample(num_escolhas)
 
         kanji_quiz = kanji_linha_escolhido.vstack(kanji_linha_escolhas)
 
-        lista_possibilidades = kanji_quiz["Portugues"].to_list()
+        lista_possibilidades = kanji_quiz["GPT-PT-BR"].to_list()
         lista_possibilidades = rd.sample(lista_possibilidades, len(lista_possibilidades))
 
         for idx, item in enumerate(lista_possibilidades):
@@ -84,15 +91,15 @@ class KanjiQuiz:
             print("Opção inválida. 🥺")
 
         if lista_possibilidades[int(escolha) - 1] == traducao_escolhida:
-            print('\nAcertou Miseravi! 🎉')
             self.lista_aleatoria.pop(0)
         else:
             print(f'\nErrado! A resposta certa era {kanji_escolhido} - {traducao_escolhida}.')
             self.feedback.append([kanji_escolhido, traducao_escolhida])
             self.vidas -= 1
+            print('Aperte enter para continuar')
+            input()
 
-        print('Aperte enter para continuar')
-        input()
+
 
     def run(self):
         while True:
